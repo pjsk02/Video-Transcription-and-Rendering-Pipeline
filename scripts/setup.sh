@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One-shot local setup for Content Machine (macOS / Apple Silicon).
+# One-shot local setup for Video Transcription and Rendering Pipeline (macOS / Apple Silicon).
 # Idempotent: safe to re-run. Installs deps, builds whisper.cpp (Metal),
 # downloads a model, and creates the Python venv.
 set -euo pipefail
@@ -30,7 +30,8 @@ fi
 echo "==> 3/4 Python venv + deps"
 python3 -m venv .venv
 ./.venv/bin/pip install --quiet --upgrade pip
-./.venv/bin/pip install --quiet -e ".[dev]"
+./.venv/bin/pip install --quiet -e ".[dev,vision]"
+./.venv/bin/python scripts/setup_vision.py
 
 echo "==> 4/4 Smoke test"
 ./.venv/bin/pytest -q || true

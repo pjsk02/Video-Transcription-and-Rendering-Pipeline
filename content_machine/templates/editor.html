@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Edit clip · Content Machine</title>
+<title>Edit clip · Video Transcription and Rendering Pipeline</title>
 <style>
   :root{
     --bg:#0a0c10;--bg2:#0e1117;--panel:#151a22;--panel2:#1b2230;--line:#242c3a;
@@ -266,7 +266,8 @@ function buildUI(){
          <div class="sliderrow"><span>Zoom</span><input type="range" id="zoom" min="1" max="3" step="0.05" aria-label="Zoom" aria-describedby="zv"><span class="val" id="zv">1.00×</span></div>
          <div class="sliderrow"><span>Position X</span><input type="range" id="ox" min="-1" max="1" step="0.02" aria-label="Horizontal position" aria-describedby="xv"><span class="val" id="xv">center</span></div>
          <div class="sliderrow"><span>Position Y</span><input type="range" id="oy" min="-1" max="1" step="0.02" aria-label="Vertical position" aria-describedby="yv"><span class="val" id="yv">center</span></div>
-         <div class="miniact"><button class="mini" id="copyall">⧉ Copy framing to all ratios</button><button class="mini" id="resetf">Reset ratio framing</button></div>
+         <div class="miniact"><button class="mini" id="facecrop" type="button" aria-describedby="facehint">Suggest 9:16 face crop</button><button class="mini" id="copyall">⧉ Copy framing to all ratios</button><button class="mini" id="resetf">Reset ratio framing</button></div>
+         <p class="small" id="facehint" role="status" aria-live="polite">Analyze this clip for a face, then review the suggested crop before applying it.</p>
        </div>
        <div class="card">
          <h2>Trim <span class="snaptag" id="snap"></span></h2>
@@ -340,6 +341,21 @@ function wire(){
   }));
   $('copyall').addEventListener('click',()=>{ const t=TF[aspect]; ASPECTS.forEach(a=>{TF[a]={zoom:t.zoom,x:t.x,y:t.y}; dirtyAspects.add(a);}); redraw(); renderTabs(); markDirty(); });
   $('resetf').addEventListener('click',()=>{ TF[aspect]={zoom:1,x:0,y:0}; dirtyAspects.add(aspect); sync(); redraw(); renderTabs(); markDirty(); });
+  $('facecrop').addEventListener('click',async()=>{
+    const btn=$('facecrop'), hint=$('facehint');
+    btn.disabled=true; hint.textContent='Analyzing faces in the current trim…';
+    try{
+      const r=await fetch(`/api/job/${JOB}/clip/${IDX}/suggest-crop`,{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({start:trimIn,end:trimOut})});
+      const data=await r.json();
+      if(!r.ok) throw new Error(data.detail||`Analysis failed (${r.status}).`);
+      TF['9:16']=data.transform; aspect='9:16'; dirtyAspects.add(aspect);
+      sync(); redraw(); renderTabs(); markDirty();
+      hint.textContent=`Suggestion from ${data.faces_found} of ${data.frames_sampled} sampled frames. Review it, then Apply & re-render.`;
+    }catch(e){ hint.textContent=`Face crop unavailable: ${e.message||e}. Your framing is unchanged.`; }
+    finally{ btn.disabled=false; }
+  });
   srcvid.addEventListener('loadedmetadata',()=>{ try{ srcvid.currentTime=Math.max(0.05,trimIn); }catch(e){} redraw(); });
   startOutLoop($('of'),outcv,srcvid,()=>aspect,()=>TF[aspect]);
   window.addEventListener('resize',redraw);

@@ -1,4 +1,4 @@
-"""Content Machine CLI.
+"""Video Transcription and Rendering Pipeline CLI.
 
   content-machine ingest <video>   # phase 1: transcribe
   content-machine select <job_id>  # phase 2: pick clips (added in phase 2)
@@ -12,12 +12,12 @@ from pathlib import Path
 
 import typer
 
-app = typer.Typer(add_completion=False, help="Local-first LinkedIn video clipper.")
+app = typer.Typer(add_completion=False, help="Video Transcription and Rendering Pipeline.")
 
 
 @app.callback()
 def main() -> None:
-    """Local-first LinkedIn video clipper — transcribe, select, render."""
+    """Transcribe, select, and render captioned video clips."""
 
 
 @app.command()
@@ -71,7 +71,7 @@ def serve(
 ):
     """Launch the localhost web UI (upload → review → download)."""
     import uvicorn
-    typer.echo(f"→ Content Machine UI at http://{host}:{port}")
+    typer.echo(f"→ Video Transcription and Rendering Pipeline UI at http://{host}:{port}")
     uvicorn.run("content_machine.app:app", host=host, port=port)
 
 

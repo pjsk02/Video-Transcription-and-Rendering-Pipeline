@@ -156,6 +156,46 @@ def test_api_clip_editor_payload(seeded_job):
     assert "transforms" in body and "captions" in body
 
 
+def test_face_crop_suggestion_uses_current_trim_without_saving(seeded_job, monkeypatch):
+    client, job_id, job_dir = seeded_job
+    captured = {}
+    edit_path = job_dir / "clips" / "clip01" / "edit.json"
+    original_edit = edit_path.read_bytes() if edit_path.exists() else None
+
+    def fake_suggest(source, start, end, cache, dims):
+        captured.update(source=source, start=start, end=end, cache=cache, dims=dims)
+        return {"aspect": "9:16", "transform": {"zoom": 1.2, "x": 0.7, "y": 0.0},
+                "faces_found": 8, "frames_sampled": 12, "cached": False}
+
+    monkeypatch.setattr(client.app_module.vision, "suggest_face_crop", fake_suggest)
+    resp = client.post(f"/api/job/{job_id}/clip/1/suggest-crop",
+                       json={"start": 2.0, "end": 18.0})
+    assert resp.status_code == 200
+    assert resp.json()["transform"]["x"] == 0.7
+    assert captured["start"] == 2.0 and captured["end"] == 18.0
+    assert captured["cache"].name == "face_suggestion.json"
+    assert (edit_path.read_bytes() if edit_path.exists() else None) == original_edit
+
+
+def test_face_crop_suggestion_reports_unavailable_detector(seeded_job, monkeypatch):
+    client, job_id, _ = seeded_job
+
+    def unavailable(*_args):
+        raise client.app_module.vision.FaceSuggestionUnavailable("Install the vision extra")
+
+    monkeypatch.setattr(client.app_module.vision, "suggest_face_crop", unavailable)
+    resp = client.post(f"/api/job/{job_id}/clip/1/suggest-crop", json={})
+    assert resp.status_code == 503
+    assert "Install" in resp.json()["detail"]
+
+
+def test_face_crop_suggestion_rejects_invalid_clip_and_window(seeded_job):
+    client, job_id, _ = seeded_job
+    assert client.post(f"/api/job/{job_id}/clip/99/suggest-crop", json={}).status_code == 404
+    assert client.post(f"/api/job/{job_id}/clip/1/suggest-crop",
+                       json={"start": -1, "end": 10}).status_code == 400
+
+
 # --- FE-05: re-derive captions endpoint --------------------------------------
 def test_api_clip_captions_returns_window_segments(seeded_job):
     """FE-05: re-derive caption events for an arbitrary [start,end] source window."""

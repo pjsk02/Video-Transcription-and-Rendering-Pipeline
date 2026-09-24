@@ -1,4 +1,4 @@
-"""Shared pytest fixtures for Content Machine (v6 Phase 23).
+"""Shared pytest fixtures for Video Transcription and Rendering Pipeline (v6 Phase 23).
 
 Two things every higher-level test needs and nobody had before:
 

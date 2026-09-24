@@ -23,7 +23,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from fastapi.staticfiles import StaticFiles
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from . import captions, config, render, select, transcribe
+from . import captions, config, render, select, transcribe, vision
 from .jobs import STAGES, Job, compute_job_id, read_json
 from .logging_setup import get_logger, job_log, job_log_path, tail
 
@@ -88,7 +88,7 @@ class MediaFiles(StaticFiles):
         return await super().get_response(path, scope)
 
 
-app = FastAPI(title="Content Machine", lifespan=_lifespan)
+app = FastAPI(title="Video Transcription and Rendering Pipeline", lifespan=_lifespan)
 app.mount("/media", MediaFiles(directory=str(config.DATA_DIR)), name="media")
 app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
 
@@ -596,6 +596,36 @@ def api_clip_editor(job_id: str, idx: int):
     if not (config.DATA_DIR / job_id / "job.json").exists():
         raise HTTPException(404, "Job not found")
     return JSONResponse(_clip_editor_payload(Job.load(job_id), idx))
+
+
+@app.post("/api/job/{job_id}/clip/{idx}/suggest-crop")
+def suggest_crop(job_id: str, idx: int, payload: dict = Body(default={})):
+    """Analyze the clip's current trim and propose a static 9:16 face crop."""
+    if not (config.DATA_DIR / job_id / "job.json").exists():
+        raise HTTPException(404, "Job not found")
+    job = Job.load(job_id)
+    clip = _clip_editor_payload(job, idx)  # validates the clip index
+    source = next(job.data_dir.glob("source.*"), None)
+    if source is None:
+        raise HTTPException(404, "Source video missing")
+    try:
+        start = float(payload.get("start", clip["start"]))
+        end = float(payload.get("end", clip["end"]))
+        if end > float(clip["duration"]) + 0.01:
+            raise ValueError("Clip window exceeds the source duration.")
+        dims = tuple(clip["source_dims"])
+        if len(dims) != 2 or min(dims) <= 0:
+            dims = render.probe_dims(source)
+        return vision.suggest_face_crop(
+            source, start, end, job.clips_dir / f"clip{idx:02d}" / "face_suggestion.json",
+            dims,
+        )
+    except vision.FaceSuggestionUnavailable as e:
+        raise HTTPException(503, str(e)) from e
+    except vision.NoFaceFound as e:
+        raise HTTPException(422, str(e)) from e
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
 
 
 @app.get("/api/job/{job_id}/clip/{idx}/captions")

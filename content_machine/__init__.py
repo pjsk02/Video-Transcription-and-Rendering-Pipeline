@@ -1,4 +1,4 @@
-"""Content Machine — local-first LinkedIn video clipper."""
+"""Video Transcription and Rendering Pipeline — local video clipping tools."""
 
 __version__ = "0.1.0"
 

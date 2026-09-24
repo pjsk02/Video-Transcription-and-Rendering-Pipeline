@@ -8,6 +8,7 @@ test_e2e_real_render.py.
 
 from __future__ import annotations
 
+import json
 import re
 
 import pytest
@@ -41,6 +42,20 @@ def test_editor_slider_marks_dirty_and_updates_box(base_url: str, page: Page):
     expect(page.locator("#pill")).to_have_text("● Unsaved changes")
     # Active tab carries a dirty marker.
     assert page.locator('#asps .asp[data-a="9:16"] .dirty').count() == 1
+    expect(page.locator("#apply")).to_be_enabled()
+
+
+def test_editor_face_suggestion_previews_unsaved_9x16_crop(base_url: str, page: Page):
+    payload = {"aspect": "9:16", "transform": {"zoom": 1.4, "x": 0.6, "y": 0.1},
+               "faces_found": 8, "frames_sampled": 12, "cached": False}
+    page.route("**/suggest-crop", lambda route: route.fulfill(
+        status=200, content_type="application/json", body=json.dumps(payload)))
+    _open_editor(base_url, page)
+    page.locator('#asps .asp[data-a="1:1"]').click()
+    page.locator("#facecrop").click()
+    expect(page.locator("#zv")).to_have_text("1.40×")
+    expect(page.locator('#asps .asp[data-a="9:16"]')).to_have_attribute("aria-pressed", "true")
+    expect(page.locator("#facehint")).to_contain_text("8 of 12 sampled frames")
     expect(page.locator("#apply")).to_be_enabled()
 
 

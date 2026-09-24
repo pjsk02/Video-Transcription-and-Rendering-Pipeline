@@ -1,4 +1,4 @@
-# One-shot local setup for Content Machine on Windows (no package manager required).
+# One-shot local setup for Video Transcription and Rendering Pipeline on Windows (no package manager required).
 # Idempotent: safe to re-run. Downloads static ffmpeg + prebuilt whisper.cpp,
 # a whisper model, and creates the Python venv.
 #
@@ -72,7 +72,10 @@ Write-Host "==> 4/4 Python venv + deps"
 if (-not (Test-Path (Join-Path $Root ".venv"))) { python -m venv .venv }
 $py = Join-Path $Root ".venv\Scripts\python.exe"
 & $py -m pip install --quiet --upgrade pip
-& $py -m pip install --quiet -e ".[dev]"
+& $py -m pip install --quiet -e ".[dev,vision]"
+if ($LASTEXITCODE -ne 0) { throw "Python dependency installation failed." }
+& $py scripts/setup_vision.py
+if ($LASTEXITCODE -ne 0) { throw "Face detector model setup failed." }
 
 Write-Host ""
 Write-Host "Setup complete. Vendored tools:"
