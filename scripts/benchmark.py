@@ -1,4 +1,4 @@
-"""Benchmark + validate the v4 hardware-accel render path: GPU encode vs CPU x264.
+"""Benchmark and validate the selected hardware encoder against CPU x264.
 
 Measures wall-time for rendering a clip in all 3 aspect ratios with the detected
 GPU encoder (NVENC/VideoToolbox) versus forced CPU libx264, and validates every
@@ -22,7 +22,7 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from content_machine import config, hwaccel, render   # noqa: E402
+from content_machine import config, hwaccel, render  # noqa: E402
 
 ASPECTS = ("9:16", "1:1", "16:9")
 
@@ -44,10 +44,12 @@ def _probe_valid(path: Path) -> dict:
                          capture_output=True, text=True).stdout
     has_v = "codec_type=video" in out
     has_a = "codec_type=audio" in out
-    w = next((l.split("=")[1] for l in out.splitlines() if l.startswith("width=")), "?")
-    h = next((l.split("=")[1] for l in out.splitlines() if l.startswith("height=")), "?")
-    codec = next((l.split("=")[1] for l in out.splitlines()
-                  if l.startswith("codec_name=")), "?")
+    w = next((line.split("=")[1] for line in out.splitlines()
+              if line.startswith("width=")), "?")
+    h = next((line.split("=")[1] for line in out.splitlines()
+              if line.startswith("height=")), "?")
+    codec = next((line.split("=")[1] for line in out.splitlines()
+                  if line.startswith("codec_name=")), "?")
     return {"ok": has_v and has_a and path.stat().st_size > 1000,
             "codec": codec, "dims": f"{w}x{h}", "audio": has_a,
             "size_kb": path.stat().st_size // 1024}
@@ -86,7 +88,7 @@ def _time_transcribe_cpu(src: Path, work: Path, seconds: float) -> float | None:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("source", nargs="?", default="EnlayeParis.mp4")
+    ap.add_argument("source")
     ap.add_argument("--seconds", type=float, default=20.0)
     ap.add_argument("--start", type=float, default=90.0)
     args = ap.parse_args()
@@ -97,7 +99,7 @@ def main() -> int:
         return 2
 
     work = Path(tempfile.mkdtemp(prefix="cm-bench-"))
-    print(f"== Content Machine render benchmark ==\nsource: {source} "
+    print(f"== Video Transcription and Rendering Pipeline render benchmark ==\nsource: {source} "
           f"({args.seconds:.0f}s slice @ {args.start:.0f}s)\nwork: {work}\n")
 
     clip = _slice(source, args.start, args.seconds, work / "clip.mp4")

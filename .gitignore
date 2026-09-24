@@ -14,15 +14,15 @@ htmlcov/
 
 # Vendored builds (whisper.cpp is cloned + built locally by scripts/setup.sh)
 /vendor/
+/tools/hyperframes/node_modules/
 
 # Local data: source videos, audio, transcripts, clips
 /data/
 
-# GSD planning scratch
-.planning/.*.log
-.planning/.*.sh
-.planning/.*.json
-.planning/.*.exit
+# Local planning and agent scratch
+/.planning/
+/CLAUDE.md
+/DeepAgentLLMtxt.md
 
 # OS
 .DS_Store
